@@ -8,8 +8,8 @@ const app = express();
 const port = 3000;
 
 const dbConfig = {
-    user: 'sa',
-    password: 'P@ssw0rd',
+    user: '你的帳號',
+    password: '你的密碼',
     server: 'localhost',
     database: 'stock_tran',
     options: {
