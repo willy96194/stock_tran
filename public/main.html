@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <title>模擬交易平台</title>
+    <!-- Bootstrap 引入 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+</head>
+
+<body>
+    <div class="mb-3 row d-flex justify-content-center">
+        <label class="col-auto col-form-label">選擇使用者：</label>
+        <div class="col-md-4">
+            <select class="form-select" id="userSelect">
+                <option value="1">Willy（uid: 1）</option>
+                <option value="2">韭菜 (uid: 2)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <!-- 接下來每個區塊填入這裡 -->
+        <div class="card shadow-sm p-4 rounded-0">
+            <div class="d-flex justify-content-center mb-3">
+                <h1 class="fs-3">📊 模擬交易平台首頁 </h1>
+            </div>
+        </div>
+        <div class="card shadow-sm p-4 rounded-0">
+            <form id="stockForm">
+                <div class="mb-3 row d-flex justify-content-center">
+                    <div class="col-auto d-flex align-items-center ">
+                        <label for="stockCode" class="form-label">股票代碼查詢:</label>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="stockInput" placeholder="請輸入股票代碼或名稱">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <button id="stockSearch" type="submit" class="btn btn-success border-0">查詢</button>
+                    </div>
+                </div>
+            </form>
+            <div id="stockResult" class="text-center mt-3"></div>
+        </div>
+
+
+        <div class="card shadow-sm p-4 rounded-0">
+            <div class="d-flex justify-content-center mb-3">
+                <h2 class="fs-4 text-center mb-2">模擬下單表單(買入/賣出)</h2>
+            </div>
+            <div class="d-flex justify-content-end mb-3 " style="margin-right: 100px;">
+                <h6>目前持有資金:<span id="userFunds"></span></h6>
+            </div>
+            <form id="stockOrderForm">
+                <div class="mb-3 row d-flex justify-content-center">
+                    <div class="col-auto d-flex align-items-center ">
+                        <label for="stockPriceInput" class="form-label">委託價格:</label>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="number" class="form-control" id="stockPriceInput" placeholder="請輸入每股委託價格">
+                    </div>
+                </div>
+
+                <div class="mb-3 row d-flex justify-content-center">
+                    <div class="col-auto d-flex align-items-center ">
+                        <label for="stockAmount" class="form-label">股數:</label>
+                    </div>
+
+                    <div class="col-md-6">
+                        <input type="number" class="form-control" id="stockAmount" placeholder="請輸入交易股數">
+                    </div>
+                    <div class="col-auto">
+                        <button id="stockBuy" type="submit" class="btn btn-success border-0">買入</button>
+                    </div>
+                    <div class="col-auto">
+                        <button id="stockSell" type="submit" class="btn btn-danger border-0">賣出</button>
+                    </div>
+                </div>
+
+
+                <div class="mb-3 row d-flex justify-content-center">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>刪/改</th>
+                                <th>名稱</th>
+                                <th>委託價格</th>
+                                <th>股數</th>
+                                <th>交易狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockOrderTableBody">
+
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+
+
+        <div class="card shadow-sm p-4 rounded-0">
+            <div class="d-flex justify-content-start ms-5 mb-3">
+                <h2 class="fs-4 text-center mb-4"><i class="fas fa-folder-open">我的持股</i></h2>
+            </div>
+            <form>
+                <div class="mb-3 row d-flex justify-content-center">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>股票代碼</th>
+                                <th>名稱</th>
+                                <th>股數</th>
+                                <th>成本</th>
+                                <th>現價</th>
+                                <th>損益</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody">
+
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        let currentUid = 1; // 預設為測試用戶 1
+
+        window.addEventListener("DOMContentLoaded", () => {
+            fetchUserFunds(); // 預設載入後就查資金
+            fetchHoldings();
+            fetchOrders();
+        });
+
+        document.getElementById("userSelect").addEventListener("change", async (e) => {
+            currentUid = parseInt(e.target.value);
+            await fetchUserFunds(); // 每次切換使用者時就查詢資金
+            await fetchHoldings();
+            await fetchOrders();
+        });
+
+        async function fetchUserFunds() {
+            const res = await fetch(`/api/users/${currentUid}`);
+            const data = await res.json();
+            if (data?.funds != null) {
+                setUserFunds(data.funds);
+            } else {
+                alert("查無使用者資訊");
+            }
+        }
+
+        //取得持股
+        async function fetchHoldings() {
+            const res = await fetch(`/api/users/${currentUid}/holdings`);
+            const data = await res.json();
+
+            const tbody = document.getElementById("stockTableBody");
+            tbody.innerHTML = "";
+
+            data.forEach(item => {
+                const gainLoss = (item.currentPrice - item.cost) * item.stockAmount;
+                const row = `
+            <tr>
+                <td>${item.stockid}</td>
+                <td>${item.stockName}</td>
+                <td>${item.stockAmount}</td>
+                <td>${item.cost}</td>
+                <td>${item.currentPrice}</td>
+                <td>${gainLoss}</td>
+            </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+
+        //取得委託單
+        async function fetchOrders() {
+            const res = await fetch(`/api/users/${currentUid}/orders`);
+            const data = await res.json();
+
+            const tbody = document.getElementById("stockOrderTableBody");
+            tbody.innerHTML = "";
+
+            data.forEach(item => {
+                const row = `
+            <tr>
+                <td>－</td>
+                <td>${item.stockName}</td>
+                <td>${item.price}</td>
+                <td>${item.amount}</td>
+                <td>${item.status}</td>
+            </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+
+        let currentStockPrice = null;
+        let currentStockName = null;
+        let currentStockCode = null;
+        function setUserFunds(value) {
+            document.getElementById("userFunds").innerText = Number(value).toLocaleString();
+        }
+        document.getElementById("stockForm").addEventListener("submit", async function (e) {
+            e.preventDefault(); // 阻止表單送出
+            const input = document.getElementById("stockInput").value;
+
+            const res = await fetch(`/api/stocks/search?query=${encodeURIComponent(input)}`);
+            const data = await res.json();
+
+            if (data && data.stockid) {
+                document.getElementById("stockResult").innerHTML = `
+                   <span>${data.stockName}(代碼:${data.stockid}) 現價:每股${data.price}元</span>`
+
+                currentStockCode = data.stockid;
+                currentStockName = data.stockName;
+                currentStockPrice = parseInt(data.price);
+            } else {
+                document.getElementById("stockResult").innerHTML = `<p class="text-danger">查無該股票</p>`;
+            }
+        });
+        document.getElementById("stockOrderForm").addEventListener("submit", handleSubmit);
+        async function handleSubmit(e) {
+            e.preventDefault();
+            if (!currentStockPrice || !currentStockName) {
+                alert("請先查詢股票再進行交易");
+                return;
+            }
+            const action = e.submitter.id;
+            const stockAmount = parseInt(document.getElementById("stockAmount").value);
+            const stockPriceInput = parseInt(document.getElementById("stockPriceInput").value);
+
+            if (!stockAmount || stockAmount <= 0) {
+                alert("請輸入正確的股數");
+                return;
+            }
+            const orderType = (action === "stockBuy") ? "buy" : "sell";
+
+
+            const res = await fetch("/api/orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    uid: currentUid,
+                    stockid: currentStockCode,
+                    type: orderType,
+                    price: stockPriceInput,
+                    amount: stockAmount
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert("掛單成功" + data.message);
+                document.getElementById("stockAmount").value = "";
+                await fetchUserFunds();
+                await fetchHoldings();
+                await fetchOrders();
+
+                // 可選：重新刷新表格資料（從資料庫撈一次）
+            } else {
+                alert("❌ 掛單失敗：" + (data.message || "請查看 Console"));
+                console.error(data);
+            }
+        }
+
+    </script>
+</body>
+
+</html>
